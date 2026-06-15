@@ -10,7 +10,7 @@ const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const db_1 = require("./config/db");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
-const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
+// const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const smsRoutes_1 = __importDefault(require("./routes/smsRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const jobRoutes_1 = __importDefault(require("./routes/jobRoutes"));
@@ -29,7 +29,7 @@ app.use((0, morgan_1.default)('dev'));
 app.use(express_1.default.json());
 // Routes
 app.use('/api/auth', authRoutes_1.default);
-app.use('/api/payment', paymentRoutes_1.default);
+// app.use('/api/payment', paymentRoutes_1.default);
 app.use('/api/sms', smsRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
 app.use('/api/jobs', jobRoutes_1.default);

@@ -6,11 +6,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyPaymentSignature = exports.createOrder = void 0;
 const razorpay_1 = __importDefault(require("razorpay"));
 const crypto_1 = __importDefault(require("crypto"));
-// Initialize Razorpay instance
-const razorpay = new razorpay_1.default({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Initialize Razorpay instance conditionally to avoid crashing on startup
+let razorpay;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new razorpay_1.default({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+} else {
+    console.warn('Warning: Razorpay key_id or key_secret is missing. Razorpay integration is disabled.');
+}
 /**
  * Create a new Razorpay order
  * @param amount - Amount in standard currency unit (e.g., INR)
@@ -18,6 +23,9 @@ const razorpay = new razorpay_1.default({
  * @param currency - Currency code (default: INR)
  */
 const createOrder = async (amount, receipt, currency = 'INR') => {
+    if (!razorpay) {
+        throw new Error('Razorpay is not configured on this server.');
+    }
     const options = {
         amount: amount * 100, // Razorpay expects amount in smallest currency unit (paise)
         currency,
