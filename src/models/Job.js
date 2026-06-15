@@ -21,6 +21,7 @@ const jobSchema = new mongoose_1.default.Schema({
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     location: { type: String, required: true },
+    broadcastRadius: { type: Number, enum: [2, 5, 8, 10], default: 5 },
     coordinates: {
         type: { type: String, default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] }

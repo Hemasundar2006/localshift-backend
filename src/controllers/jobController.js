@@ -12,7 +12,8 @@ const axios_1 = __importDefault(require("axios"));
 // @route   POST /api/jobs
 // @access  Private
 const createJob = async (req, res) => {
-    const { title, description, payRate, date, startTime, endTime, location, latitude, longitude } = req.body;
+    const { title, description, payRate, date, startTime, endTime, location, latitude, longitude, broadcastRadius } = req.body;
+    const radius = broadcastRadius ? parseInt(broadcastRadius, 10) : 5;
     try {
         const job = new Job_1.Job({
             employer: req.user._id,
@@ -23,6 +24,7 @@ const createJob = async (req, res) => {
             startTime,
             endTime,
             location,
+            broadcastRadius: radius,
             coordinates: latitude !== undefined && longitude !== undefined ? {
                 type: 'Point',
                 coordinates: [parseFloat(longitude), parseFloat(latitude)]
@@ -44,34 +46,31 @@ const createJob = async (req, res) => {
                                 type: 'Point',
                                 coordinates: [parseFloat(longitude), parseFloat(latitude)]
                             },
-                            $maxDistance: 10000 // 10km in meters
+                            $maxDistance: radius * 1000 // Convert km to meters
                         }
                     }
                 });
                 
+                const { sendPushNotification } = require('../services/notificationService');
+
                 for (const user of nearbyUsers) {
                     // Create in-app notification
                     await Notification_1.Notification.create({
-                        user: user._id,
+                        userId: user._id,
                         title: 'New Shift Nearby!',
                         message: `${createdJob.title} at ${createdJob.location} is open for applications.`,
-                        type: 'new-job'
+                        type: 'job_alert',
+                        relatedId: createdJob._id
                     });
                     
                     // Send push notification if pushToken exists
                     if (user.pushToken) {
-                        try {
-                            await axios_1.default.post('https://exp.host/--/api/v2/push/send', {
-                                to: user.pushToken,
-                                sound: 'default',
-                                title: 'New Shift Nearby!',
-                                body: `${createdJob.title} at ${createdJob.location} ($${createdJob.payRate}/hr)`,
-                                data: { jobId: createdJob._id }
-                            });
-                        }
-                        catch (pushErr) {
-                            console.error(`Failed to send push notification to user ${user._id}:`, pushErr.message);
-                        }
+                        await sendPushNotification(
+                            user.pushToken, 
+                            'New Shift Nearby!', 
+                            `${createdJob.title} at ${createdJob.location} ($${createdJob.payRate}/hr)`,
+                            { jobId: createdJob._id }
+                        );
                     }
                 }
             }

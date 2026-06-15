@@ -11,7 +11,7 @@ const userSchema = new mongoose_1.default.Schema({
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['user', 'admin', 'seeker', 'employer'], default: 'seeker' },
+    role: { type: String, enum: ['admin', 'seeker', 'employer'], default: 'seeker' },
     dob: { type: Date },
     shopName: { type: String },
     shopAddress: { type: String },
