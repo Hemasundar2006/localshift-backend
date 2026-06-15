@@ -8,5 +8,6 @@ const userController_1 = require("../controllers/userController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const router = express_1.default.Router();
 router.get('/profile', authMiddleware_1.protect, userController_1.getUserProfile);
+router.put('/profile', authMiddleware_1.protect, userController_1.updateUserProfile);
 exports.default = router;
 //# sourceMappingURL=userRoutes.js.map

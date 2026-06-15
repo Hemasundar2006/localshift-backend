@@ -11,13 +11,22 @@ const userSchema = new mongoose_1.default.Schema({
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'seeker', 'employer'], default: 'seeker' },
+    dob: { type: Date },
+    shopName: { type: String },
+    shopAddress: { type: String },
     isPhoneVerified: { type: Boolean, default: false },
     otp: { type: String },
-    otpExpiry: { type: Date }
+    otpExpiry: { type: Date },
+    pushToken: { type: String },
+    location: {
+        type: { type: String, default: 'Point' },
+        coordinates: { type: [Number], default: [0, 0] }
+    }
 }, {
     timestamps: true
 });
+userSchema.index({ location: '2dsphere' });
 userSchema.pre('save', async function () {
     if (!this.isModified('password'))
         return;

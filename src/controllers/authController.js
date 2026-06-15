@@ -14,7 +14,7 @@ const generateOTP = () => {
     return '123456'; // Default OTP for development/testing
 };
 const registerUser = async (req, res) => {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, role, shopName, shopAddress, dob } = req.body;
     if (!name || !email || !phone || !password) {
         res.status(400).json({ message: 'Please provide all required fields (name, email, phone, password)' });
         return;
@@ -27,7 +27,7 @@ const registerUser = async (req, res) => {
         }
         const otp = generateOTP();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
-        const user = await User_1.User.create({ name, email, phone, password, otp, otpExpiry });
+        const user = await User_1.User.create({ name, email, phone, password, role: role || 'seeker', dob, shopName, shopAddress, otp, otpExpiry });
         if (user) {
             // Send the SMS
             const message = `Your LocalShift verification code is: ${otp}. It is valid for 10 minutes.`;
@@ -44,6 +44,7 @@ const registerUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 phone: user.phone,
+                role: user.role,
                 isPhoneVerified: user.isPhoneVerified
                 // Not returning the JWT token until OTP is verified
             });
@@ -92,6 +93,7 @@ const verifyOTP = async (req, res) => {
             name: user.name,
             email: user.email,
             phone: user.phone,
+            role: user.role,
             isPhoneVerified: user.isPhoneVerified,
             token: generateToken(user._id.toString()), // Give them access now
         });
@@ -116,6 +118,7 @@ const loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 phone: user.phone,
+                role: user.role,
                 isPhoneVerified: user.isPhoneVerified,
                 token: generateToken(user._id.toString()),
             });

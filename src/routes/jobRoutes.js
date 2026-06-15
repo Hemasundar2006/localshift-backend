@@ -8,5 +8,8 @@ const jobController_1 = require("../controllers/jobController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const router = express_1.default.Router();
 router.route('/').get(jobController_1.getJobs).post(authMiddleware_1.protect, jobController_1.createJob);
+router.route('/employer').get(authMiddleware_1.protect, jobController_1.getEmployerJobs);
+router.route('/:id/apply').post(authMiddleware_1.protect, jobController_1.applyForJob);
+
 exports.default = router;
 //# sourceMappingURL=jobRoutes.js.map

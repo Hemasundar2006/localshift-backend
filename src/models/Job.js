@@ -10,6 +10,7 @@ const jobSchema = new mongoose_1.default.Schema({
     description: { type: String, required: true },
     employer: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User', required: true },
     worker: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }, // Assigned later
+    applicants: [{ type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }],
     payRate: { type: Number, required: true },
     status: {
         type: String,
@@ -19,9 +20,14 @@ const jobSchema = new mongoose_1.default.Schema({
     date: { type: Date, required: true },
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
-    location: { type: String, required: true }
+    location: { type: String, required: true },
+    coordinates: {
+        type: { type: String, default: 'Point' },
+        coordinates: { type: [Number], default: [0, 0] }
+    }
 }, {
     timestamps: true
 });
+jobSchema.index({ coordinates: '2dsphere' });
 exports.Job = mongoose_1.default.model('Job', jobSchema);
 //# sourceMappingURL=Job.js.map
