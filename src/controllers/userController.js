@@ -13,7 +13,8 @@ const getUserProfile = async (req, res) => {
             role: user.role,
             isPhoneVerified: user.isPhoneVerified,
             pushToken: user.pushToken,
-            location: user.location
+            location: user.location,
+            dob: user.dob
         });
     }
     else {
@@ -31,6 +32,8 @@ const updateUserProfile = async (req, res) => {
                 user.email = req.body.email;
             if (req.body.pushToken)
                 user.pushToken = req.body.pushToken;
+            if (req.body.dob)
+                user.dob = req.body.dob;
             if (req.body.latitude !== undefined && req.body.longitude !== undefined) {
                 user.location = {
                     type: 'Point',
@@ -46,7 +49,8 @@ const updateUserProfile = async (req, res) => {
                 role: updatedUser.role,
                 isPhoneVerified: updatedUser.isPhoneVerified,
                 pushToken: updatedUser.pushToken,
-                location: updatedUser.location
+                location: updatedUser.location,
+                dob: updatedUser.dob
             });
         }
         else {
