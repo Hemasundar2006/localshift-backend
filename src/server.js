@@ -18,6 +18,7 @@ const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const jobRoutes_1 = __importDefault(require("./routes/jobRoutes"));
 const serviceRoutes_1 = __importDefault(require("./routes/serviceRoutes"));
 const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
+const chatRoutes_1 = __importDefault(require("./routes/chatRoutes"));
 const errorMiddleware_1 = require("./middlewares/errorMiddleware");
 // Connect to database
 (0, db_1.connectDB)();
@@ -36,6 +37,7 @@ app.use('/api/users', userRoutes_1.default);
 app.use('/api/jobs', jobRoutes_1.default);
 app.use('/api/services', serviceRoutes_1.default);
 app.use('/api/notifications', notificationRoutes_1.default);
+app.use('/api/chats', chatRoutes_1.default);
 app.get('/', (req, res) => {
     res.send('LocalShift API is running!');
 });

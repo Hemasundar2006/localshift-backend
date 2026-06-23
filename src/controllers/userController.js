@@ -14,7 +14,9 @@ const getUserProfile = async (req, res) => {
             isPhoneVerified: user.isPhoneVerified,
             pushToken: user.pushToken,
             location: user.location,
-            dob: user.dob
+            dob: user.dob,
+            bio: user.bio,
+            skills: user.skills
         });
     }
     else {
@@ -40,6 +42,10 @@ const updateUserProfile = async (req, res) => {
                     coordinates: [parseFloat(req.body.longitude), parseFloat(req.body.latitude)]
                 };
             }
+            if (req.body.bio !== undefined)
+                user.bio = req.body.bio;
+            if (req.body.skills !== undefined)
+                user.skills = req.body.skills;
             const updatedUser = await user.save();
             res.json({
                 _id: updatedUser._id,
@@ -50,7 +56,9 @@ const updateUserProfile = async (req, res) => {
                 isPhoneVerified: updatedUser.isPhoneVerified,
                 pushToken: updatedUser.pushToken,
                 location: updatedUser.location,
-                dob: updatedUser.dob
+                dob: updatedUser.dob,
+                bio: updatedUser.bio,
+                skills: updatedUser.skills
             });
         }
         else {

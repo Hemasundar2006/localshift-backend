@@ -22,7 +22,10 @@ const userSchema = new mongoose_1.default.Schema({
     location: {
         type: { type: String, default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] }
-    }
+    },
+    bio: { type: String },
+    skills: { type: [String], default: [] },
+    coins: { type: Number, default: 150 }
 }, {
     timestamps: true
 });
