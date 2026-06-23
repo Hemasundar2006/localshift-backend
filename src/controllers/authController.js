@@ -14,7 +14,7 @@ const generateOTP = () => {
     return '123456'; // Default OTP for development/testing
 };
 const registerUser = async (req, res) => {
-    const { name, email, phone, password, role, shopName, shopAddress, dob } = req.body;
+    const { name, email, phone, password, role, shopName, shopAddress, dob, referralCode } = req.body;
     if (!name || !email || !phone || !password) {
         res.status(400).json({ message: 'Please provide all required fields (name, email, phone, password)' });
         return;
@@ -27,7 +27,37 @@ const registerUser = async (req, res) => {
         }
         const otp = generateOTP();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
-        const user = await User_1.User.create({ name, email, phone, password, role: role || 'seeker', dob, shopName, shopAddress, otp, otpExpiry });
+        
+        // Generate custom referral code
+        const safeName = name.replace(/[^a-zA-Z]/g, '').padEnd(4, 'X').substring(0, 4).toUpperCase();
+        const safePhone = phone.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
+        const newReferralCode = `${safeName}${safePhone}`;
+
+        let startingCoins = 150;
+        let referredById = null;
+
+        // Process referral code if provided and user is a seeker
+        if (role !== 'employer' && referralCode) {
+            const upperCode = referralCode.toUpperCase();
+            if (upperCode === 'MIDDLECLASS') {
+                startingCoins += 99; // 150 + 99 = 249 total
+            } else {
+                const referrer = await User_1.User.findOne({ referralCode: upperCode });
+                if (referrer) {
+                    referrer.coins += 10;
+                    await referrer.save();
+                    startingCoins = 160; // 150 + 10 referral bonus
+                    referredById = referrer._id;
+                }
+            }
+        }
+
+        const user = await User_1.User.create({ 
+            name, email, phone, password, role: role || 'seeker', dob, shopName, shopAddress, otp, otpExpiry,
+            coins: startingCoins,
+            referralCode: newReferralCode,
+            referredBy: referredById
+        });
         if (user) {
             // Send the SMS
             const message = `Your LocalShift verification code is: ${otp}. It is valid for 10 minutes.`;
@@ -45,7 +75,9 @@ const registerUser = async (req, res) => {
                 email: user.email,
                 phone: user.phone,
                 role: user.role,
-                isPhoneVerified: user.isPhoneVerified
+                isPhoneVerified: user.isPhoneVerified,
+                referralCode: user.referralCode,
+                coins: user.coins
                 // Not returning the JWT token until OTP is verified
             });
         }
@@ -95,6 +127,8 @@ const verifyOTP = async (req, res) => {
             phone: user.phone,
             role: user.role,
             isPhoneVerified: user.isPhoneVerified,
+            referralCode: user.referralCode,
+            coins: user.coins,
             token: generateToken(user._id.toString()), // Give them access now
         });
     }
@@ -120,6 +154,8 @@ const loginUser = async (req, res) => {
                 phone: user.phone,
                 role: user.role,
                 isPhoneVerified: user.isPhoneVerified,
+                referralCode: user.referralCode,
+                coins: user.coins,
                 token: generateToken(user._id.toString()),
             });
         }

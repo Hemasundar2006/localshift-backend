@@ -11,7 +11,11 @@ const jobSchema = new mongoose_1.default.Schema({
     employer: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User', required: true },
     worker: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }, // Assigned later
     applicants: [{ type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }],
-    payRate: { type: Number, required: true },
+    payRate: { type: Number }, // Keeping for backwards compatibility
+    monthlySalary: { type: Number, required: true },
+    shopName: { type: String, required: true },
+    mobileNumber: { type: String, required: true },
+    address: { type: String, required: true },
     status: {
         type: String,
         enum: ['open', 'assigned', 'in-progress', 'completed', 'cancelled'],

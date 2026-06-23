@@ -12,18 +12,21 @@ const axios_1 = __importDefault(require("axios"));
 // @route   POST /api/jobs
 // @access  Private
 const createJob = async (req, res) => {
-    const { title, description, payRate, date, startTime, endTime, location, latitude, longitude, broadcastRadius } = req.body;
+    const { title, description, monthlySalary, shopName, mobileNumber, address, date, startTime, endTime, location, latitude, longitude, broadcastRadius } = req.body;
     const radius = broadcastRadius ? parseInt(broadcastRadius, 10) : 5;
     try {
         const job = new Job_1.Job({
             employer: req.user._id,
             title,
             description,
-            payRate,
+            monthlySalary,
+            shopName,
+            mobileNumber,
+            address,
             date,
             startTime,
             endTime,
-            location,
+            location: location || address,
             broadcastRadius: radius,
             coordinates: latitude !== undefined && longitude !== undefined ? {
                 type: 'Point',
@@ -68,7 +71,7 @@ const createJob = async (req, res) => {
                         await sendPushNotification(
                             user.pushToken, 
                             'New Shift Nearby!', 
-                            `${createdJob.title} at ${createdJob.location} ($${createdJob.payRate}/hr)`,
+                            `${createdJob.title} at ${createdJob.shopName} ($${createdJob.monthlySalary}/mo)`,
                             { jobId: createdJob._id }
                         );
                     }

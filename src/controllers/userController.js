@@ -16,7 +16,9 @@ const getUserProfile = async (req, res) => {
             location: user.location,
             dob: user.dob,
             bio: user.bio,
-            skills: user.skills
+            skills: user.skills,
+            coins: user.coins,
+            referralCode: user.referralCode
         });
     }
     else {
@@ -58,7 +60,9 @@ const updateUserProfile = async (req, res) => {
                 location: updatedUser.location,
                 dob: updatedUser.dob,
                 bio: updatedUser.bio,
-                skills: updatedUser.skills
+                skills: updatedUser.skills,
+                coins: updatedUser.coins,
+                referralCode: updatedUser.referralCode
             });
         }
         else {
