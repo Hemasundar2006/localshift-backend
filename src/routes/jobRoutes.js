@@ -9,7 +9,12 @@ const authMiddleware_1 = require("../middlewares/authMiddleware");
 const router = express_1.default.Router();
 router.route('/').get(jobController_1.getJobs).post(authMiddleware_1.protect, jobController_1.createJob);
 router.route('/employer').get(authMiddleware_1.protect, jobController_1.getEmployerJobs);
+router.route('/worker/shifts').get(authMiddleware_1.protect, jobController_1.getWorkerShifts);
 router.route('/:id/apply').post(authMiddleware_1.protect, jobController_1.applyForJob);
+router.route('/:id/hire').post(authMiddleware_1.protect, jobController_1.hireWorker);
+router.route('/:id/check-in').post(authMiddleware_1.protect, jobController_1.checkInJob);
+router.route('/:id/check-out').post(authMiddleware_1.protect, jobController_1.checkOutJob);
+router.route('/:id').get(jobController_1.getJobById);
 
 exports.default = router;
 //# sourceMappingURL=jobRoutes.js.map

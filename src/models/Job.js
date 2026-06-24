@@ -30,7 +30,9 @@ const jobSchema = new mongoose_1.default.Schema({
     coordinates: {
         type: { type: String, default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] }
-    }
+    },
+    checkInTime: { type: Date },
+    checkOutTime: { type: Date }
 }, {
     timestamps: true
 });
