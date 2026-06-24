@@ -33,20 +33,20 @@ const registerUser = async (req, res) => {
         const safePhone = phone.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0');
         const newReferralCode = `${safeName}${safePhone}`;
 
-        let startingCoins = 150;
+        let startingCoins = 0;
         let referredById = null;
 
         // Process referral code if provided and user is a seeker
         if (role !== 'employer' && referralCode) {
             const upperCode = referralCode.toUpperCase();
             if (upperCode === 'MIDDLECLASS') {
-                startingCoins += 99; // 150 + 99 = 249 total
+                startingCoins += 99;
             } else {
                 const referrer = await User_1.User.findOne({ referralCode: upperCode });
                 if (referrer) {
                     referrer.coins += 10;
                     await referrer.save();
-                    startingCoins = 160; // 150 + 10 referral bonus
+                    startingCoins = 10; // 10 referral bonus coins
                     referredById = referrer._id;
                 }
             }

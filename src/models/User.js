@@ -25,7 +25,8 @@ const userSchema = new mongoose_1.default.Schema({
     },
     bio: { type: String },
     skills: { type: [String], default: [] },
-    coins: { type: Number, default: 150 },
+    coins: { type: Number, default: 0 },
+    linkedAccounts: { type: [String], default: ['google'] },
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }
 }, {

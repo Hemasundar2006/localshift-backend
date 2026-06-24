@@ -12,7 +12,8 @@ const jobSchema = new mongoose_1.default.Schema({
     worker: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }, // Assigned later
     applicants: [{ type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' }],
     payRate: { type: Number }, // Keeping for backwards compatibility
-    monthlySalary: { type: Number, required: true },
+    minSalary: { type: Number, required: true },
+    maxSalary: { type: Number, required: true },
     shopName: { type: String, required: true },
     mobileNumber: { type: String, required: true },
     address: { type: String, required: true },
