@@ -22,6 +22,7 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const chatRoutes_1 = __importDefault(require("./routes/chatRoutes"));
 const statsRoutes_1 = __importDefault(require("./routes/statsRoutes"));
 const feedbackRoutes = require("./routes/feedbackRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
 const errorMiddleware_1 = require("./middlewares/errorMiddleware");
 // Connect to database
 (0, db_1.connectDB)();
@@ -44,6 +45,7 @@ app.use('/api/notifications', notificationRoutes_1.default);
 app.use('/api/chats', chatRoutes_1.default);
 app.use('/api/stats', statsRoutes_1.default);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 app.get('/', (req, res) => {
     res.send('LocalShift API is running!');
 });
