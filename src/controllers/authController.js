@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loginUser = exports.verifyOTP = exports.registerUser = void 0;
+exports.googleLogin = exports.loginUser = exports.verifyOTP = exports.registerUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
 const textbee_1 = require("../services/textbee");
@@ -168,4 +168,105 @@ const loginUser = async (req, res) => {
     }
 };
 exports.loginUser = loginUser;
+
+const googleLogin = async (req, res) => {
+    const { idToken, accessToken } = req.body;
+
+    if (!idToken && !accessToken) {
+        res.status(400).json({ message: 'No Google token provided' });
+        return;
+    }
+
+    try {
+        let email, name, googleId;
+
+        if (idToken) {
+            // Verify via tokeninfo (native GoogleSignin gives idToken)
+            const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+            const data = await response.json();
+
+            if (data.error) {
+                res.status(401).json({ message: 'Invalid Google ID token', error: data.error });
+                return;
+            }
+            email = data.email;
+            name = data.name;
+            googleId = data.sub;
+        } else {
+            // Verify via userinfo (expo-auth-session gives accessToken)
+            const response = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+
+            if (!response.ok) {
+                res.status(401).json({ message: 'Invalid Google access token' });
+                return;
+            }
+            const data = await response.json();
+            email = data.email;
+            name = data.name;
+            googleId = data.id;
+        }
+
+        if (!email) {
+            res.status(401).json({ message: 'Could not retrieve email from Google' });
+            return;
+        }
+
+        let user = await User_1.User.findOne({ email });
+
+        if (user) {
+            if (!user.linkedAccounts.includes('google')) {
+                user.linkedAccounts.push('google');
+                await user.save();
+            }
+
+            res.json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                isPhoneVerified: user.isPhoneVerified,
+                referralCode: user.referralCode,
+                coins: user.coins,
+                token: generateToken(user._id.toString()),
+            });
+        } else {
+            const tempPassword = Math.random().toString(36).slice(-8);
+            const tempPhone = `google_${Date.now()}`;
+
+            const safeName = (name || 'User').replace(/[^a-zA-Z]/g, '').padEnd(4, 'X').substring(0, 4).toUpperCase();
+            const newReferralCode = `${safeName}${Math.floor(1000 + Math.random() * 9000)}`;
+
+            user = await User_1.User.create({
+                name: name || email.split('@')[0],
+                email,
+                phone: tempPhone,
+                password: tempPassword,
+                role: 'seeker',
+                isPhoneVerified: true,
+                linkedAccounts: ['google'],
+                referralCode: newReferralCode,
+                coins: 0
+            });
+
+            res.status(201).json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                isPhoneVerified: user.isPhoneVerified,
+                referralCode: user.referralCode,
+                coins: user.coins,
+                token: generateToken(user._id.toString()),
+            });
+        }
+    } catch (error) {
+        console.error('googleLogin error:', error);
+        res.status(500).json({ message: 'Server error during Google Login', error: error.message });
+    }
+};
+exports.googleLogin = googleLogin;
 //# sourceMappingURL=authController.js.map

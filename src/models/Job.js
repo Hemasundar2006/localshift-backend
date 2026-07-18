@@ -27,12 +27,15 @@ const jobSchema = new mongoose_1.default.Schema({
     endTime: { type: String, required: true },
     location: { type: String, required: true },
     broadcastRadius: { type: Number, enum: [2, 5, 8, 10], default: 5 },
+    geofenceRadius: { type: Number, enum: [200, 500, 1000, 5000], default: 200 },
     coordinates: {
         type: { type: String, default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] }
     },
     checkInTime: { type: Date },
-    checkOutTime: { type: Date }
+    checkOutTime: { type: Date },
+    expiresAt: { type: Date },
+    validityHours: { type: Number, default: 24 }
 }, {
     timestamps: true
 });

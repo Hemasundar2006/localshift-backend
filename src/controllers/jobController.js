@@ -12,8 +12,11 @@ const axios_1 = __importDefault(require("axios"));
 // @route   POST /api/jobs
 // @access  Private
 const createJob = async (req, res) => {
-    const { title, description, monthlySalary, shopName, mobileNumber, address, date, startTime, endTime, location, latitude, longitude, broadcastRadius } = req.body;
+    const { title, description, monthlySalary, shopName, mobileNumber, address, date, startTime, endTime, location, latitude, longitude, broadcastRadius, validityHours, geofenceRadius } = req.body;
     const radius = broadcastRadius ? parseInt(broadcastRadius, 10) : 5;
+    const vHours = validityHours ? parseInt(validityHours, 10) : 24;
+    const expiresAt = new Date(Date.now() + vHours * 60 * 60 * 1000);
+    const gRadius = geofenceRadius ? parseInt(geofenceRadius, 10) : 200;
     try {
         const job = new Job_1.Job({
             employer: req.user._id,
@@ -28,6 +31,9 @@ const createJob = async (req, res) => {
             endTime,
             location: location || address,
             broadcastRadius: radius,
+            geofenceRadius: [200, 500, 1000, 5000].includes(gRadius) ? gRadius : 200,
+            validityHours: vHours,
+            expiresAt,
             coordinates: latitude !== undefined && longitude !== undefined ? {
                 type: 'Point',
                 coordinates: [parseFloat(longitude), parseFloat(latitude)]
@@ -93,10 +99,35 @@ exports.createJob = createJob;
 // @access  Public
 const getJobs = async (req, res) => {
     try {
-        const jobs = await Job_1.Job.find({ status: 'open' }).populate('employer', 'name email');
+        const now = new Date();
+        const { lat, lng, distance } = req.query;
+        let query = {
+            status: 'open',
+            $or: [
+                { expiresAt: { $exists: false } },
+                { expiresAt: { $gt: now } }
+            ]
+        };
+        if (lat && lng) {
+            const latitude = parseFloat(lat);
+            const longitude = parseFloat(lng);
+            const maxDistanceKm = distance ? parseFloat(distance) : 5;
+            const maxDistanceMeters = maxDistanceKm * 1000;
+            query.coordinates = {
+                $near: {
+                    $geometry: {
+                        type: 'Point',
+                        coordinates: [longitude, latitude]
+                    },
+                    $maxDistance: maxDistanceMeters
+                }
+            };
+        }
+        const jobs = await Job_1.Job.find(query).populate('employer', 'name email');
         res.json(jobs);
     }
     catch (error) {
+        console.error('getJobs error:', error);
         res.status(500).json({ message: 'Failed to fetch jobs' });
     }
 };
@@ -118,6 +149,10 @@ const applyForJob = async (req, res) => {
     try {
         const job = await Job_1.Job.findById(req.params.id);
         if (!job) return res.status(404).json({ message: 'Job not found' });
+        
+        if (job.expiresAt && new Date() > new Date(job.expiresAt)) {
+            return res.status(400).json({ message: 'This job opportunity has expired' });
+        }
         
         if (job.applicants.includes(req.user._id)) {
             return res.status(400).json({ message: 'You have already applied for this job' });
@@ -226,13 +261,47 @@ const hireWorker = async (req, res) => {
 };
 exports.hireWorker = hireWorker;
 
+const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Earth's radius in meters
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+    const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+};
+
 const checkInJob = async (req, res) => {
+    const { latitude, longitude } = req.body;
+    if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({ message: 'Latitude and longitude are required for check-in' });
+    }
+
     try {
         const job = await Job_1.Job.findById(req.params.id);
         if (!job) return res.status(404).json({ message: 'Job not found' });
         
         if (job.worker.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'Not authorized. You are not hired for this job' });
+        }
+
+        const jobLat = job.coordinates && job.coordinates.coordinates ? job.coordinates.coordinates[1] : 0;
+        const jobLng = job.coordinates && job.coordinates.coordinates ? job.coordinates.coordinates[0] : 0;
+
+        // Perform geofencing check if job has valid coordinates (not 0, 0)
+        if (jobLat !== 0 || jobLng !== 0) {
+            const distance = getDistanceInMeters(parseFloat(latitude), parseFloat(longitude), jobLat, jobLng);
+            const GEOFENCE_RADIUS = job.geofenceRadius || 200;
+            if (distance > GEOFENCE_RADIUS) {
+                return res.status(400).json({ 
+                    message: `You are too far from the job location to check in. You are ${Math.round(distance)}m away. Allowed radius is ${GEOFENCE_RADIUS}m.` 
+                });
+            }
         }
         
         job.status = 'in-progress';
@@ -273,12 +342,31 @@ const checkInJob = async (req, res) => {
 exports.checkInJob = checkInJob;
 
 const checkOutJob = async (req, res) => {
+    const { latitude, longitude } = req.body;
+    if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({ message: 'Latitude and longitude are required for check-out' });
+    }
+
     try {
         const job = await Job_1.Job.findById(req.params.id);
         if (!job) return res.status(404).json({ message: 'Job not found' });
         
         if (job.worker.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'Not authorized. You are not hired for this job' });
+        }
+
+        const jobLat = job.coordinates && job.coordinates.coordinates ? job.coordinates.coordinates[1] : 0;
+        const jobLng = job.coordinates && job.coordinates.coordinates ? job.coordinates.coordinates[0] : 0;
+
+        // Perform geofencing check if job has valid coordinates (not 0, 0)
+        if (jobLat !== 0 || jobLng !== 0) {
+            const distance = getDistanceInMeters(parseFloat(latitude), parseFloat(longitude), jobLat, jobLng);
+            const GEOFENCE_RADIUS = job.geofenceRadius || 200;
+            if (distance > GEOFENCE_RADIUS) {
+                return res.status(400).json({ 
+                    message: `You are too far from the job location to check out. You are ${Math.round(distance)}m away. Allowed radius is ${GEOFENCE_RADIUS}m.` 
+                });
+            }
         }
         
         job.status = 'completed';
@@ -342,4 +430,35 @@ const getJobById = async (req, res) => {
     }
 };
 exports.getJobById = getJobById;
+
+const getSeekerApplications = async (req, res) => {
+    try {
+        const jobs = await Job_1.Job.find({ applicants: req.user._id })
+            .populate('employer', 'name email phone shopName')
+            .sort({ createdAt: -1 });
+
+        const formattedJobs = jobs.map(job => {
+            let applicationStatus = 'pending';
+            if (job.worker) {
+                if (job.worker.toString() === req.user._id.toString()) {
+                    applicationStatus = 'hired';
+                } else {
+                    applicationStatus = 'rejected';
+                }
+            } else if (job.status === 'cancelled') {
+                applicationStatus = 'cancelled';
+            }
+
+            return {
+                ...job.toObject(),
+                applicationStatus
+            };
+        });
+
+        res.json(formattedJobs);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch applications', error: error.message });
+    }
+};
+exports.getSeekerApplications = getSeekerApplications;
 //# sourceMappingURL=jobController.js.map
