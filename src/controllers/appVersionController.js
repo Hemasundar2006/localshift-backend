@@ -1,28 +1,45 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllAppVersions = exports.getLatestAppVersions = exports.uploadAppVersion = void 0;
+exports.getAllAppVersions = exports.getLatestAppVersions = exports.saveAppVersion = exports.getUploadSignature = void 0;
 const AppVersion_1 = require("../models/AppVersion");
-const uploadMiddleware_1 = require("../middlewares/uploadMiddleware");
+const cloudinary_1 = require("cloudinary");
 
-const uploadAppVersion = async (req, res) => {
+// ─── GET /api/app-versions/get-signature ──────────────────────────────────────
+// Returns a signed upload preset so the browser can upload DIRECTLY to Cloudinary.
+// File never passes through our server → no timeout issues.
+const getUploadSignature = async (req, res) => {
     try {
-        const { version, platform, releaseNotes } = req.body;
+        const timestamp = Math.round(new Date().getTime() / 1000);
+        const folder = 'localshift-apks';
 
-        if (!req.file) {
-            return res.status(400).json({ message: 'Please upload an app file (.apk, .aab, or .ipa)' });
-        }
+        const signature = cloudinary_1.v2.utils.api_sign_request(
+            { timestamp, folder, resource_type: 'raw' },
+            process.env.CLOUDINARY_API_SECRET
+        );
 
-        if (!version || !platform) {
-            return res.status(400).json({ message: 'version and platform are required fields' });
-        }
+        res.json({
+            signature,
+            timestamp,
+            folder,
+            cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+            apiKey: process.env.CLOUDINARY_API_KEY,
+        });
+    } catch (error) {
+        console.error('getUploadSignature error:', error);
+        res.status(500).json({ message: 'Could not generate upload signature', error: error.message });
+    }
+};
+exports.getUploadSignature = getUploadSignature;
 
-        // Upload to Cloudinary (file is in memory buffer via memoryStorage)
-        let fileUrl;
-        try {
-            fileUrl = await uploadMiddleware_1.uploadToCloudinary(req.file.buffer, req.file.originalname);
-        } catch (cloudErr) {
-            console.error('Cloudinary upload error:', cloudErr);
-            return res.status(500).json({ message: 'Failed to upload file to cloud storage', error: cloudErr.message });
+// ─── POST /api/app-versions/save ──────────────────────────────────────────────
+// After the browser uploads directly to Cloudinary, it calls this endpoint
+// with just the Cloudinary URL + version metadata. Fast — no file transfer.
+const saveAppVersion = async (req, res) => {
+    try {
+        const { version, platform, releaseNotes, downloadUrl } = req.body;
+
+        if (!version || !platform || !downloadUrl) {
+            return res.status(400).json({ message: 'version, platform, and downloadUrl are required' });
         }
 
         // Mark all existing versions of this platform as not-latest
@@ -32,19 +49,20 @@ const uploadAppVersion = async (req, res) => {
             version,
             platform,
             releaseNotes,
-            downloadUrl: fileUrl,   // Cloudinary URL (permanent, CDN-backed)
+            downloadUrl,
             isLatest: true,
             uploadedBy: req.user._id
         });
 
         res.status(201).json(newVersion);
     } catch (error) {
-        console.error('uploadAppVersion error:', error);
+        console.error('saveAppVersion error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
-exports.uploadAppVersion = uploadAppVersion;
+exports.saveAppVersion = saveAppVersion;
 
+// ─── GET /api/app-versions/latest ─────────────────────────────────────────────
 const getLatestAppVersions = async (req, res) => {
     try {
         const versions = await AppVersion_1.AppVersion.find({ isLatest: true });
@@ -55,6 +73,7 @@ const getLatestAppVersions = async (req, res) => {
 };
 exports.getLatestAppVersions = getLatestAppVersions;
 
+// ─── GET /api/app-versions/all ────────────────────────────────────────────────
 const getAllAppVersions = async (req, res) => {
     try {
         const versions = await AppVersion_1.AppVersion.find({}).sort({ createdAt: -1 });
