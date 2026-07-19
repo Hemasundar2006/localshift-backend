@@ -45,7 +45,9 @@ const uploadAppChunk = async (req, res) => {
             writeStream.end();
 
             writeStream.on('finish', async () => {
+                // RUNS IN BACKGROUND (does not block HTTP response)
                 try {
+                    console.log('Starting background upload to GitHub Releases...');
                     const fileBuffer = (0, fs_1.readFileSync)(finalFilePath);
                     const octokit = new rest_1.Octokit({ auth: process.env.GITHUB_TOKEN });
                     const tagName = `v${version}-${platform}-${Date.now()}`;
@@ -80,7 +82,7 @@ const uploadAppChunk = async (req, res) => {
 
                     // 3. Save to MongoDB
                     await AppVersion_1.AppVersion.updateMany({ platform }, { isLatest: false });
-                    const newVersion = await AppVersion_1.AppVersion.create({
+                    await AppVersion_1.AppVersion.create({
                         version,
                         platform,
                         releaseNotes,
@@ -88,20 +90,20 @@ const uploadAppChunk = async (req, res) => {
                         isLatest: true,
                         uploadedBy: req.user._id,
                     });
+                    console.log('Background upload to GitHub complete and saved to MongoDB');
 
-                    return res.status(201).json(newVersion);
                 } catch (githubErr) {
-                    console.error('GitHub upload error:', githubErr);
+                    console.error('GitHub background upload error:', githubErr);
                     if ((0, fs_1.existsSync)(finalFilePath)) (0, fs_1.unlinkSync)(finalFilePath);
-                    return res.status(500).json({ message: 'GitHub upload failed', error: githubErr.message });
                 }
             });
             
             writeStream.on('error', (err) => {
                 console.error('Stitching error:', err);
-                return res.status(500).json({ message: 'File stitching failed', error: err.message });
             });
 
+            // Respond immediately so Render doesn't timeout!
+            return res.status(202).json({ message: 'File received. Uploading to GitHub in the background.' });
         } else {
             // Not the last chunk
             return res.json({ message: `Chunk ${chunkIndex} uploaded successfully` });
