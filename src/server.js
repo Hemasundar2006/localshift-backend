@@ -58,6 +58,10 @@ app.get('/', (req, res) => {
 // Error Middleware
 app.use(errorMiddleware_1.notFound);
 app.use(errorMiddleware_1.errorHandler);
+// Initialize cron jobs
+const { initCronJobs } = require('./services/cronService');
+initCronJobs();
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

@@ -10,6 +10,9 @@ const router = express_1.default.Router();
 
 router.post('/ad', authMiddleware_1.protect, earnController_1.earnFromAd);
 router.get('/lottery/tickets', authMiddleware_1.protect, earnController_1.getTickets);
+router.get('/lottery/eligible-tickets', authMiddleware_1.protect, earnController_1.getEligibleTickets);
+router.get('/lottery/latest-winner', authMiddleware_1.protect, earnController_1.getLatestWinner);
+router.get('/lottery/recent-winners', authMiddleware_1.protect, earnController_1.getRecentWinners);
 router.post('/lottery/draw', earnController_1.triggerWeeklyDraw);
 router.post('/task', authMiddleware_1.protect, earnController_1.earnFromTask);
 router.post('/withdraw', authMiddleware_1.protect, earnController_1.withdrawCoins);

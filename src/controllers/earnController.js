@@ -4,6 +4,7 @@ exports.triggerWeeklyDraw = exports.getTickets = exports.getStats = exports.getT
 const User_1 = require("../models/User");
 const Transaction_1 = require("../models/Transaction");
 const LotteryTicket_1 = require("../models/LotteryTicket");
+const LotteryWinner_1 = require("../models/LotteryWinner");
 
 // Watch an ad to earn 1 coin
 const earnFromAd = async (req, res) => {
@@ -88,41 +89,146 @@ const getTickets = async (req, res) => {
 };
 exports.getTickets = getTickets;
 
-// Trigger Weekly Draw (Admin conceptually)
+// Trigger Weekly Draw (Can be called via API or Cron)
 const triggerWeeklyDraw = async (req, res) => {
     try {
         const activeTickets = await LotteryTicket_1.LotteryTicket.find({ status: 'active' });
-        if (activeTickets.length === 0) {
-            return res.json({ message: 'No active tickets for the draw' });
+        
+        // Group by user
+        const userTicketCount = {};
+        activeTickets.forEach(t => {
+            const uid = t.userId.toString();
+            if (!userTicketCount[uid]) userTicketCount[uid] = { userId: t.userId, tickets: [] };
+            userTicketCount[uid].tickets.push(t);
+        });
+
+        // Filter eligible (>= 6 tickets)
+        const eligibleUsers = Object.values(userTicketCount).filter(u => u.tickets.length >= 6);
+
+        if (eligibleUsers.length === 0) {
+            // Expire all tickets
+            await LotteryTicket_1.LotteryTicket.updateMany({ status: 'active' }, { status: 'lost' });
+            if (res) return res.json({ message: 'No eligible users for the draw. All tickets reset.' });
+            return;
         }
 
-        const winnerIndex = Math.floor(Math.random() * activeTickets.length);
-        const winningTicket = activeTickets[winnerIndex];
+        const winnerIndex = Math.floor(Math.random() * eligibleUsers.length);
+        const winningUserGroup = eligibleUsers[winnerIndex];
+        const winningTicket = winningUserGroup.tickets[0];
 
+        // Mark all as lost
         await LotteryTicket_1.LotteryTicket.updateMany({ status: 'active' }, { status: 'lost' });
 
-        winningTicket.status = 'won';
-        await winningTicket.save();
+        // Update winning ticket to won
+        await LotteryTicket_1.LotteryTicket.findByIdAndUpdate(winningTicket._id, { status: 'won' });
 
         const winnerUser = await User_1.User.findById(winningTicket.userId);
         if (winnerUser) {
-            winnerUser.earnCoins = (winnerUser.earnCoins || 0) + 500;
+            winnerUser.earnCoins = (winnerUser.earnCoins || 0) + 200;
             await winnerUser.save();
+            
             await Transaction_1.Transaction.create({
                 userId: winnerUser._id,
                 type: 'earn',
-                amount: 500,
+                amount: 200,
                 description: `Won Weekly Lottery! Ticket #${winningTicket.ticketNumber}`,
                 status: 'success'
             });
+
+            // Save winner record for admin
+            await LotteryWinner_1.LotteryWinner.create({
+                userId: winnerUser._id,
+                name: winnerUser.name,
+                mobileNumber: winnerUser.phone || '',
+                ticketNumber: winningTicket.ticketNumber,
+                prizeAmount: 200
+            });
+
+            // Send Push Notification
+            if (winnerUser.pushToken) {
+                const { Expo } = require('expo-server-sdk');
+                const expo = new Expo();
+                if (Expo.isExpoPushToken(winnerUser.pushToken)) {
+                    try {
+                        await expo.sendPushNotificationsAsync([{
+                            to: winnerUser.pushToken,
+                            sound: 'default',
+                            title: '🎉 You Won the Weekly Draw!',
+                            body: `Congratulations ${winnerUser.name}! You won 200 coins in this week's lottery!`,
+                            data: { type: 'lottery_winner' },
+                        }]);
+                    } catch (e) {
+                        console.error('Push notification failed:', e);
+                    }
+                }
+            }
         }
 
-        res.json({ message: 'Draw completed', winningTicket: winningTicket.ticketNumber });
+        if (res) res.json({ message: 'Draw completed', winningTicket: winningTicket.ticketNumber });
+    } catch (error) {
+        console.error('Error in triggerWeeklyDraw:', error);
+        if (res) res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+exports.triggerWeeklyDraw = triggerWeeklyDraw;
+
+// Get eligible tickets for the live draw
+const getEligibleTickets = async (req, res) => {
+    try {
+        const activeTickets = await LotteryTicket_1.LotteryTicket.find({ status: 'active' }).populate('userId', 'name avatarUrl');
+        
+        const userTicketCount = {};
+        activeTickets.forEach(t => {
+            if (t.userId) {
+                const uid = t.userId._id.toString();
+                if (!userTicketCount[uid]) userTicketCount[uid] = { user: t.userId, count: 0, tickets: [] };
+                userTicketCount[uid].count++;
+                userTicketCount[uid].tickets.push(t);
+            }
+        });
+
+        const eligibleTickets = [];
+        Object.values(userTicketCount).forEach(userData => {
+            if (userData.count >= 6) {
+                eligibleTickets.push(...userData.tickets);
+            }
+        });
+
+        res.json({ eligibleTickets });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
-exports.triggerWeeklyDraw = triggerWeeklyDraw;
+exports.getEligibleTickets = getEligibleTickets;
+
+// Get latest winner
+const getLatestWinner = async (req, res) => {
+    try {
+        const latestWinner = await LotteryTicket_1.LotteryTicket.findOne({ status: 'won' })
+            .sort({ updatedAt: -1 })
+            .populate('userId', 'name avatarUrl');
+            
+        res.json({ latestWinner });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+exports.getLatestWinner = getLatestWinner;
+
+// Get recent winners (marquee)
+const getRecentWinners = async (req, res) => {
+    try {
+        const recentWinners = await LotteryWinner_1.LotteryWinner.find({})
+            .sort({ drawDate: -1 })
+            .limit(10)
+            .select('name ticketNumber prizeAmount drawDate -_id'); // Exclude mobile number and userId
+            
+        res.json({ recentWinners });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+exports.getRecentWinners = getRecentWinners;
 
 // Complete a task (survey/app test) to earn coins
 const earnFromTask = async (req, res) => {

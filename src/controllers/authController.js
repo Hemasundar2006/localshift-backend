@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.googleLogin = exports.loginUser = exports.verifyOTP = exports.registerUser = void 0;
+exports.resetPassword = exports.googleLogin = exports.loginUser = exports.verifyOTP = exports.registerUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
 const textbee_1 = require("../services/textbee");
@@ -269,4 +269,42 @@ const googleLogin = async (req, res) => {
     }
 };
 exports.googleLogin = googleLogin;
+
+const resetPassword = async (req, res) => {
+    const { phone, dob, newPassword } = req.body;
+    if (!phone || !dob || !newPassword) {
+        res.status(400).json({ message: 'Phone, Date of Birth, and New Password are required' });
+        return;
+    }
+    try {
+        const user = await User_1.User.findOne({ phone });
+        if (!user) {
+            res.status(404).json({ message: 'User not found with this phone number' });
+            return;
+        }
+
+        if (!user.dob) {
+             res.status(400).json({ message: 'Date of Birth is not set for this account. Please contact support.' });
+             return;
+        }
+
+        const userDobString = new Date(user.dob).toISOString().split('T')[0];
+        const inputDobString = new Date(dob).toISOString().split('T')[0];
+
+        if (userDobString !== inputDobString) {
+            res.status(401).json({ message: 'Incorrect Date of Birth' });
+            return;
+        }
+
+        user.password = newPassword;
+        await user.save();
+
+        res.json({ message: 'Password reset successfully' });
+    }
+    catch (error) {
+        console.error('resetPassword error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+exports.resetPassword = resetPassword;
 //# sourceMappingURL=authController.js.map

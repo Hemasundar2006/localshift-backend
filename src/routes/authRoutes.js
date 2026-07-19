@@ -10,5 +10,6 @@ router.post('/register', authController_1.registerUser);
 router.post('/verify-otp', authController_1.verifyOTP);
 router.post('/login', authController_1.loginUser);
 router.post('/google', authController_1.googleLogin);
+router.post('/reset-password', authController_1.resetPassword);
 exports.default = router;
 //# sourceMappingURL=authRoutes.js.map
