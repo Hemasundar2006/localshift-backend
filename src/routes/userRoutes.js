@@ -14,5 +14,6 @@ router.post('/change-password', authMiddleware_1.protect, userController_1.chang
 router.post('/resume', authMiddleware_1.protect, uploadMiddleware_1.upload.single('resume'), userController_1.uploadResume);
 router.post('/avatar', authMiddleware_1.protect, uploadMiddleware_1.upload.single('avatar'), userController_1.uploadAvatar);
 router.put('/push-token', authMiddleware_1.protect, userController_1.updatePushToken);
+router.put('/push-preferences', authMiddleware_1.protect, userController_1.updatePushPreferences);
 exports.default = router;
 //# sourceMappingURL=userRoutes.js.map

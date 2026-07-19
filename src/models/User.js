@@ -19,6 +19,7 @@ const userSchema = new mongoose_1.default.Schema({
     otp: { type: String },
     otpExpiry: { type: Date },
     pushToken: { type: String },
+    pushEnabled: { type: Boolean, default: true },
     location: {
         type: { type: String, default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] }
@@ -26,6 +27,10 @@ const userSchema = new mongoose_1.default.Schema({
     bio: { type: String },
     skills: { type: [String], default: [] },
     coins: { type: Number, default: 0 },
+    earnCoins: { type: Number, default: 0 },
+    lotteryTickets: { type: Number, default: 0 },
+    adsWatchedToday: { type: Number, default: 0 },
+    lastAdWatchDate: { type: Date },
     linkedAccounts: { type: [String], default: ['google'] },
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'User' },

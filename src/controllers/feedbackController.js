@@ -26,4 +26,23 @@ const submitFeedback = async (req, res) => {
     }
 };
 
-exports.submitFeedback = submitFeedback;
+// @desc    Get all feedback
+// @route   GET /api/feedback
+// @access  Public
+const getAllFeedbacks = async (req, res) => {
+    try {
+        const feedbacks = await Feedback.find()
+            .populate('user', 'name role')
+            .sort({ createdAt: -1 })
+            .limit(20);
+        res.json(feedbacks);
+    } catch (error) {
+        console.error('getAllFeedbacks error:', error);
+        res.status(500).json({ message: 'Failed to fetch feedbacks' });
+    }
+};
+
+module.exports = {
+    submitFeedback,
+    getAllFeedbacks
+};

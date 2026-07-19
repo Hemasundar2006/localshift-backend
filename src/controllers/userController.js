@@ -55,6 +55,10 @@ const updateUserProfile = async (req, res) => {
                 user.email = req.body.email;
             if (req.body.pushToken)
                 user.pushToken = req.body.pushToken;
+            if (req.body.role)
+                user.role = req.body.role;
+            if (req.body.role)
+                user.role = req.body.role;
             if (req.body.dob)
                 user.dob = req.body.dob;
             if (req.body.latitude !== undefined && req.body.longitude !== undefined) {
@@ -240,4 +244,24 @@ const updatePushToken = async (req, res) => {
     }
 };
 exports.updatePushToken = updatePushToken;
+
+const updatePushPreferences = async (req, res) => {
+    try {
+        const { pushToken, pushEnabled } = req.body;
+        
+        const user = await User_1.User.findById(req.user._id);
+        if (user) {
+            if (pushToken !== undefined) user.pushToken = pushToken;
+            if (pushEnabled !== undefined) user.pushEnabled = pushEnabled;
+            await user.save();
+            res.json({ message: 'Push preferences updated successfully', pushToken: user.pushToken, pushEnabled: user.pushEnabled });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        console.error('updatePushPreferences error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+exports.updatePushPreferences = updatePushPreferences;
 //# sourceMappingURL=userController.js.map
