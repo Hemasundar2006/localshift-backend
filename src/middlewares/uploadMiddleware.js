@@ -3,10 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadToCloudinary = exports.uploadAppFile = exports.upload = void 0;
+exports.uploadAvatarToCloudinary = exports.uploadResumeToCloudinary = exports.uploadToCloudinary = exports.uploadAppFile = exports.upload = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
 const cloudinary_1 = require("cloudinary");
 const stream_1 = require("stream");
 
@@ -17,23 +16,7 @@ cloudinary_1.v2.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// ─── Local disk storage (resume / avatar – small files) ──────────────────────
-const uploadDir = path_1.default.join(__dirname, '../../uploads');
-if (!fs_1.default.existsSync(uploadDir)) {
-    fs_1.default.mkdirSync(uploadDir, { recursive: true });
-}
-
-const diskStorage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
-    }
-});
-
-// ─── Memory storage (appFile – goes straight to Cloudinary) ──────────────────
+// ─── Memory storage (all files — no disk touch) ───────────────────────────────
 const memoryStorage = multer_1.default.memoryStorage();
 
 // ─── File filter ─────────────────────────────────────────────────────────────
@@ -63,52 +46,85 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// ─── Multer instances ─────────────────────────────────────────────────────────
-// For resume / avatar (disk)
+// ─── Multer instances (all use memoryStorage) ─────────────────────────────────
+// For resume / avatar (memory → Cloudinary)
 exports.upload = (0, multer_1.default)({
-    storage: diskStorage,
+    storage: memoryStorage,
     fileFilter: fileFilter,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10 MB for pdfs/images
+    limits: { fileSize: 10 * 1024 * 1024 } // 10 MB for PDFs/images
 });
 
-// For appFile (memory → Cloudinary)
+// For appFile (memory → GitHub Releases)
 exports.uploadAppFile = (0, multer_1.default)({
     storage: memoryStorage,
     fileFilter: fileFilter,
     limits: { fileSize: 200 * 1024 * 1024 } // 200 MB for APKs
 });
 
-// ─── Cloudinary upload helper ─────────────────────────────────────────────────
+// ─── Cloudinary stream helper ─────────────────────────────────────────────────
+const streamToCloudinary = (buffer, options) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary_1.v2.uploader.upload_stream(options, (error, result) => {
+            if (error) return reject(error);
+            resolve(result.secure_url);
+        });
+        const readable = new stream_1.Readable();
+        readable.push(buffer);
+        readable.push(null);
+        readable.pipe(uploadStream);
+    });
+};
+
+// ─── Avatar upload → Cloudinary (image) ──────────────────────────────────────
 /**
- * Upload a buffer (from multer memoryStorage) to Cloudinary.
- * Returns the secure URL.
+ * Upload a profile image buffer to Cloudinary.
+ * Auto-transforms: resize to 400x400, face-crop, webp format.
  * @param {Buffer} buffer
- * @param {string} originalName
+ * @param {string} userId  - used as public_id so old avatar is auto-replaced
  * @returns {Promise<string>} secure_url
  */
+const uploadAvatarToCloudinary = (buffer, userId) => {
+    return streamToCloudinary(buffer, {
+        resource_type: 'image',
+        folder: 'localshift-avatars',
+        public_id: `user-${userId}`,      // same public_id = replaces old avatar
+        overwrite: true,
+        transformation: [
+            { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+            { fetch_format: 'auto', quality: 'auto' },
+        ],
+    });
+};
+exports.uploadAvatarToCloudinary = uploadAvatarToCloudinary;
+
+// ─── Resume upload → Cloudinary (raw PDF) ────────────────────────────────────
+/**
+ * Upload a PDF resume buffer to Cloudinary.
+ * @param {Buffer} buffer
+ * @param {string} originalName
+ * @param {string} userId
+ * @returns {Promise<string>} secure_url
+ */
+const uploadResumeToCloudinary = (buffer, originalName, userId) => {
+    const baseName = path_1.default.basename(originalName, path_1.default.extname(originalName));
+    return streamToCloudinary(buffer, {
+        resource_type: 'raw',
+        folder: 'localshift-resumes',
+        public_id: `resume-${userId}-${baseName}`,
+        format: 'pdf',
+        overwrite: true,
+    });
+};
+exports.uploadResumeToCloudinary = uploadResumeToCloudinary;
+
+// ─── Generic raw upload (kept for backward compat) ───────────────────────────
 const uploadToCloudinary = (buffer, originalName) => {
-    return new Promise((resolve, reject) => {
-        const ext = path_1.default.extname(originalName).replace('.', '');
-        const publicId = `localshift-apks/${Date.now()}-${path_1.default.basename(originalName, '.' + ext)}`;
-
-        const uploadStream = cloudinary_1.v2.uploader.upload_stream(
-            {
-                resource_type: 'raw',   // raw = non-image/video files (APK, PDF, etc.)
-                public_id: publicId,
-                format: ext,
-                use_filename: true,
-                unique_filename: false,
-            },
-            (error, result) => {
-                if (error) return reject(error);
-                resolve(result.secure_url);
-            }
-        );
-
-        const readableStream = new stream_1.Readable();
-        readableStream.push(buffer);
-        readableStream.push(null);
-        readableStream.pipe(uploadStream);
+    const ext = path_1.default.extname(originalName).replace('.', '');
+    const publicId = `localshift-misc/${Date.now()}-${path_1.default.basename(originalName, '.' + ext)}`;
+    return streamToCloudinary(buffer, {
+        resource_type: 'raw',
+        public_id: publicId,
+        format: ext,
     });
 };
 exports.uploadToCloudinary = uploadToCloudinary;
