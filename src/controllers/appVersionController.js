@@ -12,8 +12,10 @@ const getUploadSignature = async (req, res) => {
         const timestamp = Math.round(new Date().getTime() / 1000);
         const folder = 'localshift-apks';
 
+        // NOTE: resource_type is part of the URL path (/raw/upload), NOT a signed param.
+        // Only sign the params that go into the FormData body.
         const signature = cloudinary_1.v2.utils.api_sign_request(
-            { timestamp, folder, resource_type: 'raw' },
+            { timestamp, folder },
             process.env.CLOUDINARY_API_SECRET
         );
 
