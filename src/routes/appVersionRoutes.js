@@ -16,8 +16,7 @@ router.get('/latest', appVersionController_1.getLatestAppVersions);
 // Protected route to get all app versions (history)
 router.get('/all', authMiddleware_1.protect, appVersionController_1.getAllAppVersions);
 
-// Protected route to upload a new app version (Requires admin/student-earn level access)
-// For now we protect it with the standard auth middleware, but we could add an admin check
-router.post('/upload', authMiddleware_1.protect, uploadMiddleware_1.upload.single('appFile'), appVersionController_1.uploadAppVersion);
+// Protected route to upload a new app version → file goes to Cloudinary via memoryStorage
+router.post('/upload', authMiddleware_1.protect, uploadMiddleware_1.uploadAppFile.single('appFile'), appVersionController_1.uploadAppVersion);
 
 exports.default = router;
