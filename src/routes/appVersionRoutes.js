@@ -6,19 +6,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const appVersionController_1 = require("../controllers/appVersionController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
+const uploadMiddleware_1 = require("../middlewares/uploadMiddleware");
 
 const router = express_1.default.Router();
 
-// Public: get latest versions (used by app to check for updates)
+// Public: latest versions (used by app to check for updates)
 router.get('/latest', appVersionController_1.getLatestAppVersions);
 
-// Protected: get full version history
+// Protected: version history
 router.get('/all', authMiddleware_1.protect, appVersionController_1.getAllAppVersions);
 
-// Protected: step 1 – browser requests a Cloudinary signed upload token
-router.get('/get-signature', authMiddleware_1.protect, appVersionController_1.getUploadSignature);
-
-// Protected: step 2 – browser sends Cloudinary URL after direct upload
-router.post('/save', authMiddleware_1.protect, appVersionController_1.saveAppVersion);
+// Protected: upload APK → server buffers it → uploads to GitHub Releases
+// Uses memoryStorage (no disk), 200MB limit for large APKs
+router.post('/upload', authMiddleware_1.protect, uploadMiddleware_1.uploadAppFile.single('appFile'), appVersionController_1.uploadAppVersion);
 
 exports.default = router;

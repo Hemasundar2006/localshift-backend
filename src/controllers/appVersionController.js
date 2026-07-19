@@ -1,68 +1,79 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllAppVersions = exports.getLatestAppVersions = exports.saveAppVersion = exports.getUploadSignature = void 0;
+exports.getAllAppVersions = exports.getLatestAppVersions = exports.uploadAppVersion = void 0;
 const AppVersion_1 = require("../models/AppVersion");
-const cloudinary_1 = require("cloudinary");
+const rest_1 = require("@octokit/rest");
 
-// ─── GET /api/app-versions/get-signature ──────────────────────────────────────
-// Returns a signed upload preset so the browser can upload DIRECTLY to Cloudinary.
-// File never passes through our server → no timeout issues.
-const getUploadSignature = async (req, res) => {
+// GitHub config from env
+const GITHUB_OWNER = process.env.GITHUB_OWNER;   // e.g. "Hemasundar2006"
+const GITHUB_REPO  = process.env.GITHUB_REPO;    // e.g. "localshift-releases"
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;   // Personal Access Token (repo scope)
+
+// ─── POST /api/app-versions/upload ────────────────────────────────────────────
+// Receives the APK via multipart, creates a GitHub Release, uploads the APK
+// as a release asset, saves the resulting download URL to MongoDB.
+const uploadAppVersion = async (req, res) => {
     try {
-        const timestamp = Math.round(new Date().getTime() / 1000);
-        const folder = 'localshift-apks';
+        const { version, platform, releaseNotes } = req.body;
 
-        // NOTE: resource_type is part of the URL path (/raw/upload), NOT a signed param.
-        // Only sign the params that go into the FormData body.
-        const signature = cloudinary_1.v2.utils.api_sign_request(
-            { timestamp, folder },
-            process.env.CLOUDINARY_API_SECRET
-        );
-
-        res.json({
-            signature,
-            timestamp,
-            folder,
-            cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-            apiKey: process.env.CLOUDINARY_API_KEY,
-        });
-    } catch (error) {
-        console.error('getUploadSignature error:', error);
-        res.status(500).json({ message: 'Could not generate upload signature', error: error.message });
-    }
-};
-exports.getUploadSignature = getUploadSignature;
-
-// ─── POST /api/app-versions/save ──────────────────────────────────────────────
-// After the browser uploads directly to Cloudinary, it calls this endpoint
-// with just the Cloudinary URL + version metadata. Fast — no file transfer.
-const saveAppVersion = async (req, res) => {
-    try {
-        const { version, platform, releaseNotes, downloadUrl } = req.body;
-
-        if (!version || !platform || !downloadUrl) {
-            return res.status(400).json({ message: 'version, platform, and downloadUrl are required' });
+        if (!req.file) {
+            return res.status(400).json({ message: 'Please upload an app file (.apk, .aab, or .ipa)' });
+        }
+        if (!version || !platform) {
+            return res.status(400).json({ message: 'version and platform are required' });
         }
 
-        // Mark all existing versions of this platform as not-latest
+        const octokit = new rest_1.Octokit({ auth: GITHUB_TOKEN });
+        const tagName = `v${version}-${platform}-${Date.now()}`;
+
+        // 1. Create a GitHub Release
+        const { data: release } = await octokit.rest.repos.createRelease({
+            owner: GITHUB_OWNER,
+            repo:  GITHUB_REPO,
+            tag_name: tagName,
+            name: `LocalShift ${platform} v${version}`,
+            body: releaseNotes || `LocalShift ${platform} release v${version}`,
+            draft: false,
+            prerelease: false,
+        });
+
+        // 2. Upload the APK as a release asset
+        const ext = require('path').extname(req.file.originalname) || '.apk';
+        const assetName = `localshift-${platform}-v${version}${ext}`;
+
+        const { data: asset } = await octokit.rest.repos.uploadReleaseAsset({
+            owner:      GITHUB_OWNER,
+            repo:       GITHUB_REPO,
+            release_id: release.id,
+            name:       assetName,
+            data:       req.file.buffer,          // buffer from multer memoryStorage
+            headers: {
+                'content-type':   req.file.mimetype || 'application/octet-stream',
+                'content-length': req.file.buffer.length,
+            },
+        });
+
+        const downloadUrl = asset.browser_download_url;
+
+        // 3. Save to MongoDB
         await AppVersion_1.AppVersion.updateMany({ platform }, { isLatest: false });
 
         const newVersion = await AppVersion_1.AppVersion.create({
             version,
             platform,
             releaseNotes,
-            downloadUrl,
+            downloadUrl,   // GitHub CDN URL — permanent, fast, no size limit
             isLatest: true,
-            uploadedBy: req.user._id
+            uploadedBy: req.user._id,
         });
 
         res.status(201).json(newVersion);
     } catch (error) {
-        console.error('saveAppVersion error:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('uploadAppVersion error:', error);
+        res.status(500).json({ message: 'Upload failed', error: error.message });
     }
 };
-exports.saveAppVersion = saveAppVersion;
+exports.uploadAppVersion = uploadAppVersion;
 
 // ─── GET /api/app-versions/latest ─────────────────────────────────────────────
 const getLatestAppVersions = async (req, res) => {
