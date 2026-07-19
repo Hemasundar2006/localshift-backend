@@ -41,6 +41,9 @@ const fileFilter = (req, file, cb) => {
         } else {
             cb(new Error('Only .apk, .aab, or .ipa files are allowed for app uploads'), false);
         }
+    } else if (file.fieldname === 'chunk') {
+        // Chunks are sent as application/octet-stream, just accept them
+        cb(null, true);
     } else {
         cb(new Error('Unknown field name'), false);
     }
