@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updatePushToken = exports.uploadAvatar = exports.uploadResume = exports.changePassword = exports.updateUserProfile = exports.getUserProfile = void 0;
 const User_1 = require("../models/User");
+const uploadMiddleware_1 = require("../middlewares/uploadMiddleware");
 
 const getUserProfile = async (req, res) => {
     try {
@@ -147,8 +148,8 @@ const uploadResume = async (req, res) => {
         }
         const user = await User_1.User.findById(req.user._id);
         if (user) {
-            const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-            user.resumeUrl = fileUrl;
+            const secureUrl = await uploadMiddleware_1.uploadResumeToCloudinary(req.file.buffer, req.file.originalname, user._id.toString());
+            user.resumeUrl = secureUrl;
             user.resumeName = req.file.originalname;
             const updatedUser = await user.save();
             res.json({
@@ -189,8 +190,8 @@ const uploadAvatar = async (req, res) => {
         }
         const user = await User_1.User.findById(req.user._id);
         if (user) {
-            const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-            user.avatarUrl = fileUrl;
+            const secureUrl = await uploadMiddleware_1.uploadAvatarToCloudinary(req.file.buffer, user._id.toString());
+            user.avatarUrl = secureUrl;
             const updatedUser = await user.save();
             res.json({
                 _id: updatedUser._id,
