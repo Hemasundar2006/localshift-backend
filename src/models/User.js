@@ -16,6 +16,7 @@ const userSchema = new mongoose_1.default.Schema({
     shopName: { type: String },
     shopAddress: { type: String },
     isPhoneVerified: { type: Boolean, default: false },
+    isEmailVerified: { type: Boolean, default: false },
     otp: { type: String },
     otpExpiry: { type: Date },
     pushToken: { type: String },

@@ -6,12 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetPassword = exports.googleLogin = exports.loginUser = exports.verifyOTP = exports.registerUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
-const textbee_1 = require("../services/textbee");
+const emailService_1 = require("../services/emailService");
+const activityService_1 = require("../services/activityService");
 const generateToken = (id) => {
     return jsonwebtoken_1.default.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 const generateOTP = () => {
-    return '123456'; // Default OTP for development/testing
+    return Math.floor(100000 + Math.random() * 900000).toString();
 };
 const registerUser = async (req, res) => {
     const { name, email, phone, password, role, shopName, shopAddress, dob, referralCode } = req.body;
@@ -59,15 +60,15 @@ const registerUser = async (req, res) => {
             referredBy: referredById
         });
         if (user) {
-            // Send the SMS
-            const message = `Your LocalShift verification code is: ${otp}. It is valid for 10 minutes.`;
+            (0, activityService_1.logActivity)(user._id.toString(), 'USER_REGISTERED', `New user registered: ${email}`, { role: user.role });
+            // Send the Email OTP
             try {
-                await (0, textbee_1.sendSMS)(phone, message);
+                await (0, emailService_1.sendEmailOTP)(email, otp);
             }
-            catch (smsError) {
-                console.error('Failed to send verification SMS:', smsError);
-                // We still successfully registered the user, but couldn't send SMS
+            catch (emailError) {
+                console.error('Failed to send verification Email:', emailError);
             }
+
             res.status(201).json({
                 message: 'Registration successful! Please verify your phone number.',
                 _id: user._id,
@@ -91,22 +92,20 @@ const registerUser = async (req, res) => {
 };
 exports.registerUser = registerUser;
 const verifyOTP = async (req, res) => {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) {
-        res.status(400).json({ message: 'Phone and OTP are required' });
+    const { phone, email, otp } = req.body;
+    if ((!phone && !email) || !otp) {
+        res.status(400).json({ message: 'Email/Phone and OTP are required' });
         return;
     }
     try {
-        const user = await User_1.User.findOne({ phone });
+        const query = email ? { email: email.toLowerCase() } : { phone };
+        const user = await User_1.User.findOne(query);
         if (!user) {
             res.status(404).json({ message: 'User not found' });
             return;
         }
-        if (user.isPhoneVerified) {
-            res.status(400).json({ message: 'Phone is already verified' });
-            return;
-        }
-        if (user.otp !== otp && otp !== '123456') {
+        // Removed isPhoneVerified check to allow login OTP
+        if (user.otp !== otp) {
             res.status(400).json({ message: 'Invalid OTP' });
             return;
         }
@@ -116,9 +115,13 @@ const verifyOTP = async (req, res) => {
         }
         // Mark as verified and clear OTP fields
         user.isPhoneVerified = true;
+        user.isEmailVerified = true;
         user.otp = '';
         user.otpExpiry = null;
         await user.save();
+        
+        (0, activityService_1.logActivity)(user._id.toString(), 'USER_LOGGED_IN', `User logged in via OTP`, { ipAddress: req.ip });
+
         res.json({
             message: 'Phone verified successfully!',
             _id: user._id,
@@ -127,6 +130,7 @@ const verifyOTP = async (req, res) => {
             phone: user.phone,
             role: user.role,
             isPhoneVerified: user.isPhoneVerified,
+            isEmailVerified: user.isEmailVerified,
             referralCode: user.referralCode,
             coins: user.coins,
             token: generateToken(user._id.toString()), // Give them access now
@@ -142,21 +146,24 @@ const loginUser = async (req, res) => {
     try {
         const user = await User_1.User.findOne({ email });
         if (user && (await user.matchPassword(password))) {
-            // Enforce phone verification before login
-            if (!user.isPhoneVerified) {
-                res.status(401).json({ message: 'Please verify your phone number first' });
-                return;
+            const otp = generateOTP();
+            const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+            user.otp = otp;
+            user.otpExpiry = otpExpiry;
+            await user.save();
+
+            // Send Email OTP
+            try {
+                await (0, emailService_1.sendEmailOTP)(user.email, otp);
+            } catch (emailError) {
+                console.error('Failed to send login Email:', emailError);
             }
+
             res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
+                message: 'OTP sent successfully',
                 phone: user.phone,
-                role: user.role,
-                isPhoneVerified: user.isPhoneVerified,
-                referralCode: user.referralCode,
-                coins: user.coins,
-                token: generateToken(user._id.toString()),
+                otpSent: true,
             });
         }
         else {
@@ -220,6 +227,8 @@ const googleLogin = async (req, res) => {
                 user.linkedAccounts.push('google');
                 await user.save();
             }
+
+            (0, activityService_1.logActivity)(user._id.toString(), 'USER_LOGGED_IN_GOOGLE', `User logged in via Google`, { ipAddress: req.ip });
 
             res.json({
                 _id: user._id,
@@ -298,6 +307,8 @@ const resetPassword = async (req, res) => {
 
         user.password = newPassword;
         await user.save();
+
+        (0, activityService_1.logActivity)(user._id.toString(), 'PASSWORD_RESET', `User reset password`, { ipAddress: req.ip });
 
         res.json({ message: 'Password reset successfully' });
     }

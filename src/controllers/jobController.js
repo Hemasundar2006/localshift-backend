@@ -7,6 +7,7 @@ exports.getJobs = exports.createJob = void 0;
 const Job_1 = require("../models/Job");
 const User_1 = require("../models/User");
 const Notification_1 = require("../models/Notification");
+const activityService_1 = require("../services/activityService");
 const axios_1 = __importDefault(require("axios"));
 // @desc    Create a new job
 // @route   POST /api/jobs
@@ -44,6 +45,8 @@ const createJob = async (req, res) => {
         });
         const createdJob = await job.save();
         
+        (0, activityService_1.logActivity)(req.user._id.toString(), 'JOB_CREATED', `Employer created job: ${createdJob.title}`, { jobId: createdJob._id });
+
         // Find and notify nearby users (within 10km) if coordinates are valid
         if (latitude !== undefined && longitude !== undefined) {
             try {
@@ -161,6 +164,8 @@ const applyForJob = async (req, res) => {
         job.applicants.push(req.user._id);
         await job.save();
 
+        (0, activityService_1.logActivity)(req.user._id.toString(), 'JOB_APPLIED', `User applied for job: ${job.title}`, { jobId: job._id });
+
         // Notify employer (in-app, push, and SMS)
         try {
             const employer = await User_1.User.findById(job.employer);
@@ -226,6 +231,8 @@ const hireWorker = async (req, res) => {
         job.status = 'assigned';
         await job.save();
         
+        (0, activityService_1.logActivity)(req.user._id.toString(), 'WORKER_HIRED', `Employer hired worker for job: ${job.title}`, { jobId: job._id, workerId });
+
         // Notify the hired worker
         try {
             const hiredUser = await User_1.User.findById(workerId);
