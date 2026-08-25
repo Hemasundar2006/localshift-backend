@@ -144,7 +144,10 @@ exports.verifyOTP = verifyOTP;
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
-        const user = await User_1.User.findOne({ email });
+        const cleanEmail = (email || '').trim();
+        const user = await User_1.User.findOne({
+            email: { $regex: new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+        });
         if (user && (await user.matchPassword(password))) {
             const otp = generateOTP();
             const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins

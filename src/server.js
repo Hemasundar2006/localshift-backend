@@ -31,6 +31,7 @@ const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 // Connect to database
 (0, db_1.connectDB)();
 const app = (0, express_1.default)();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 // Middleware
 app.use((0, cors_1.default)());
