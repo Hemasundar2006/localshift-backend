@@ -70,7 +70,7 @@ const registerUser = async (req, res) => {
             }
 
             res.status(201).json({
-                message: 'Registration successful! Please verify your phone number.',
+                message: 'Registration successful! Please verify your email address.',
                 _id: user._id,
                 name: user.name,
                 email: user.email,
