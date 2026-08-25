@@ -11,12 +11,14 @@ const router = express_1.default.Router();
 const authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
     max: 10,
+    validate: { xForwardedForHeader: false },
     message: { message: 'Too many requests from this IP, please try again after 15 minutes' }
 });
 
 const verifyLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
     max: 20,
+    validate: { xForwardedForHeader: false },
     message: { message: 'Too many verify attempts from this IP, please try again after 15 minutes' }
 });
 
