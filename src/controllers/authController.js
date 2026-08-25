@@ -146,7 +146,10 @@ const loginUser = async (req, res) => {
     try {
         const cleanEmail = (email || '').trim();
         const user = await User_1.User.findOne({
-            email: { $regex: new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+            $or: [
+                { email: { $regex: new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+                { phone: cleanEmail }
+            ]
         });
         if (user && (await user.matchPassword(password))) {
             const otp = generateOTP();
