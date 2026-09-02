@@ -37,6 +37,15 @@ const getUserProfile = async (req, res) => {
                 linkedAccounts: user.linkedAccounts || ['google'],
                 shopName: user.shopName,
                 shopAddress: user.shopAddress,
+                companyName: user.companyName,
+                companyWebsite: user.companyWebsite,
+                companyIndustry: user.companyIndustry,
+                companySize: user.companySize,
+                companyDescription: user.companyDescription,
+                companyAddress: user.companyAddress,
+                companyLogo: user.companyLogo,
+                isVerified: user.isVerified,
+                accountStatus: user.accountStatus,
                 resumeUrl: user.resumeUrl,
                 resumeName: user.resumeName,
                 avatarUrl: user.avatarUrl,
@@ -63,8 +72,6 @@ const updateUserProfile = async (req, res) => {
                 user.pushToken = req.body.pushToken;
             if (req.body.role)
                 user.role = req.body.role;
-            if (req.body.role)
-                user.role = req.body.role;
             if (req.body.dob)
                 user.dob = req.body.dob;
             if (req.body.latitude !== undefined && req.body.longitude !== undefined) {
@@ -83,6 +90,20 @@ const updateUserProfile = async (req, res) => {
                 user.shopName = req.body.shopName;
             if (req.body.shopAddress !== undefined)
                 user.shopAddress = req.body.shopAddress;
+            if (req.body.companyName !== undefined)
+                user.companyName = req.body.companyName;
+            if (req.body.companyWebsite !== undefined)
+                user.companyWebsite = req.body.companyWebsite;
+            if (req.body.companyIndustry !== undefined)
+                user.companyIndustry = req.body.companyIndustry;
+            if (req.body.companySize !== undefined)
+                user.companySize = req.body.companySize;
+            if (req.body.companyDescription !== undefined)
+                user.companyDescription = req.body.companyDescription;
+            if (req.body.companyAddress !== undefined)
+                user.companyAddress = req.body.companyAddress;
+            if (req.body.companyLogo !== undefined)
+                user.companyLogo = req.body.companyLogo;
             if (req.body.resumeUrl !== undefined)
                 user.resumeUrl = req.body.resumeUrl;
             if (req.body.resumeName !== undefined)
@@ -115,6 +136,16 @@ const updateUserProfile = async (req, res) => {
                 linkedAccounts: updatedUser.linkedAccounts || [],
                 shopName: updatedUser.shopName,
                 shopAddress: updatedUser.shopAddress,
+                companyName: updatedUser.companyName,
+                companyWebsite: updatedUser.companyWebsite,
+                companyGst: updatedUser.companyGst,
+                companyIndustry: updatedUser.companyIndustry,
+                companySize: updatedUser.companySize,
+                companyDescription: updatedUser.companyDescription,
+                companyAddress: updatedUser.companyAddress,
+                companyLogo: updatedUser.companyLogo,
+                isVerified: updatedUser.isVerified,
+                accountStatus: updatedUser.accountStatus,
                 resumeUrl: updatedUser.resumeUrl,
                 resumeName: updatedUser.resumeName,
                 avatarUrl: updatedUser.avatarUrl,

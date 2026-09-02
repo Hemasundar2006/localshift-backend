@@ -26,6 +26,11 @@ const jobSchema = new mongoose_1.default.Schema({
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     location: { type: String, required: true },
+    category: { type: String, default: 'General' },
+    openings: { type: Number, default: 1 },
+    skills: { type: [String], default: [] },
+    perks: { type: [String], default: [] },
+    genderPreference: { type: String, enum: ['Any', 'Male', 'Female'], default: 'Any' },
     broadcastRadius: { type: Number, enum: [2, 5, 8, 10], default: 5 },
     geofenceRadius: { type: Number, enum: [200, 500, 1000, 5000], default: 200 },
     coordinates: {

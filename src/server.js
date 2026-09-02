@@ -28,6 +28,7 @@ const errorMiddleware_1 = require("./middlewares/errorMiddleware");
 const feedbackRoutes_1 = __importDefault(require("./routes/feedbackRoutes"));
 const appVersionRoutes_1 = __importDefault(require("./routes/appVersionRoutes"));
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
+const vacancyRoutes_1 = __importDefault(require("./routes/vacancyRoutes"));
 // Connect to database
 (0, db_1.connectDB)();
 const app = (0, express_1.default)();
@@ -45,6 +46,7 @@ app.use('/api/auth', authRoutes_1.default);
 app.use('/api/sms', smsRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
 app.use('/api/jobs', jobRoutes_1.default);
+app.use('/api/vacancies', vacancyRoutes_1.default);
 app.use('/api/services', serviceRoutes_1.default);
 app.use('/api/notifications', notificationRoutes_1.default);
 app.use('/api/chats', chatRoutes_1.default);
@@ -52,7 +54,6 @@ app.use('/api/stats', statsRoutes_1.default);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/earn', earnRoutes_1.default);
-app.use('/api/feedback', feedbackRoutes_1.default);
 app.use('/api/app-versions', appVersionRoutes_1.default);
 app.use('/api/admin', adminRoutes_1.default);
 app.get('/', (req, res) => {

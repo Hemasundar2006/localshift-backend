@@ -15,7 +15,11 @@ const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 const registerUser = async (req, res) => {
-    const { name, email, phone, password, role, shopName, shopAddress, dob, referralCode } = req.body;
+    const { 
+        name, email, phone, password, role, shopName, shopAddress, dob, referralCode,
+        companyName, companyWebsite, companyIndustry, companySize, 
+        companyDescription, companyAddress, adminKey
+    } = req.body;
     if (!name || !email || !phone || !password) {
         res.status(400).json({ message: 'Please provide all required fields (name, email, phone, password)' });
         return;
@@ -38,7 +42,7 @@ const registerUser = async (req, res) => {
         let referredById = null;
 
         // Process referral code if provided and user is a seeker
-        if (role !== 'employer' && referralCode) {
+        if (role === 'seeker' && referralCode) {
             const upperCode = referralCode.toUpperCase();
             if (upperCode === 'MIDDLECLASS') {
                 startingCoins += 99;
@@ -54,7 +58,22 @@ const registerUser = async (req, res) => {
         }
 
         const user = await User_1.User.create({ 
-            name, email, phone, password, role: role || 'seeker', dob, shopName, shopAddress, otp, otpExpiry,
+            name, 
+            email, 
+            phone, 
+            password, 
+            role: role || 'seeker', 
+            dob, 
+            shopName, 
+            shopAddress, 
+            companyName: companyName || (role === 'company' ? name : undefined),
+            companyWebsite,
+            companyIndustry,
+            companySize,
+            companyDescription,
+            companyAddress,
+            otp, 
+            otpExpiry,
             coins: startingCoins,
             referralCode: newReferralCode,
             referredBy: referredById

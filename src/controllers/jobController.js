@@ -13,24 +13,40 @@ const axios_1 = __importDefault(require("axios"));
 // @route   POST /api/jobs
 // @access  Private
 const createJob = async (req, res) => {
-    const { title, description, monthlySalary, shopName, mobileNumber, address, date, startTime, endTime, location, latitude, longitude, broadcastRadius, validityHours, geofenceRadius } = req.body;
+    const { 
+        title, description, monthlySalary, minSalary, maxSalary, shopName, mobileNumber, 
+        address, date, startTime, endTime, location, latitude, longitude, 
+        broadcastRadius, validityHours, geofenceRadius,
+        category, openings, skills, perks, genderPreference
+    } = req.body;
     const radius = broadcastRadius ? parseInt(broadcastRadius, 10) : 5;
     const vHours = validityHours ? parseInt(validityHours, 10) : 24;
     const expiresAt = new Date(Date.now() + vHours * 60 * 60 * 1000);
     const gRadius = geofenceRadius ? parseInt(geofenceRadius, 10) : 200;
+
+    const parsedMinSalary = minSalary !== undefined ? Number(minSalary) : (monthlySalary ? Number(monthlySalary) : 0);
+    const parsedMaxSalary = maxSalary !== undefined ? Number(maxSalary) : parsedMinSalary;
+
     try {
         const job = new Job_1.Job({
             employer: req.user._id,
             title,
             description,
-            monthlySalary,
-            shopName,
-            mobileNumber,
-            address,
-            date,
-            startTime,
-            endTime,
-            location: location || address,
+            minSalary: parsedMinSalary,
+            maxSalary: parsedMaxSalary,
+            payRate: parsedMinSalary,
+            shopName: shopName || req.user.shopName || req.user.name,
+            mobileNumber: mobileNumber || req.user.phone,
+            address: address || req.user.shopAddress || location,
+            date: date ? new Date(date) : new Date(),
+            startTime: startTime || '09:00 AM',
+            endTime: endTime || '06:00 PM',
+            location: location || address || req.user.shopAddress || 'Local',
+            category: category || 'General',
+            openings: Number(openings) || 1,
+            skills: Array.isArray(skills) ? skills : (skills ? skills.split(',').map((s) => s.trim()).filter(Boolean) : []),
+            perks: Array.isArray(perks) ? perks : (perks ? perks.split(',').map((s) => s.trim()).filter(Boolean) : []),
+            genderPreference: genderPreference || 'Any',
             broadcastRadius: radius,
             geofenceRadius: [200, 500, 1000, 5000].includes(gRadius) ? gRadius : 200,
             validityHours: vHours,
